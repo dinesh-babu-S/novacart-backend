@@ -1,29 +1,55 @@
 package project.NovaCart.dto;
 
 import java.math.BigDecimal;
+import project.NovaCart.entity.OrderStatus;
 
 public class OrderItemResponse {
 
+    private Long id;
     private String productName;
-
     private Integer quantity;
-
     private BigDecimal price;
-
     private BigDecimal subtotal;
+    private OrderStatus status;
+    private Long productId;
 
     public OrderItemResponse() {
     }
 
-    public OrderItemResponse(String productName,
+    public OrderItemResponse(Long id,
+                             String productName,
                              Integer quantity,
                              BigDecimal price,
-                             BigDecimal subtotal) {
-
+                             BigDecimal subtotal,
+                             OrderStatus status,
+                             Long productId) {
+        this.id = id;
         this.productName = productName;
         this.quantity = quantity;
         this.price = price;
         this.subtotal = subtotal;
+        this.status = status;
+        this.productId = productId;
+    }
+
+    // Deprecated but kept for backwards compatibility if needed
+    public OrderItemResponse(String productName,
+                             Integer quantity,
+                             BigDecimal price,
+                             BigDecimal subtotal) {
+        this.productName = productName;
+        this.quantity = quantity;
+        this.price = price;
+        this.subtotal = subtotal;
+        this.status = OrderStatus.PENDING;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getProductName() {
@@ -56,5 +82,21 @@ public class OrderItemResponse {
 
     public void setSubtotal(BigDecimal subtotal) {
         this.subtotal = subtotal;
+    }
+
+    public OrderStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(OrderStatus status) {
+        this.status = status;
+    }
+
+    public Long getProductId() {
+        return productId;
+    }
+
+    public void setProductId(Long productId) {
+        this.productId = productId;
     }
 }
