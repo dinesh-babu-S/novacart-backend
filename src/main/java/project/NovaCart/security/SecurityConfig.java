@@ -99,12 +99,17 @@ public class SecurityConfig {
                         .requestMatchers("/api/categories/**")
                         .hasRole("ADMIN")
 
-                        // Customer APIs
-                        .requestMatchers("/api/cart/**")
-                        .hasRole("CUSTOMER")
+                        // Order Item Approval & Returns (Admin)
+                        .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/orders/items/*/accept").hasRole("ADMIN")
+                        .requestMatchers("/api/orders/items/*/reject").hasRole("ADMIN")
+                        .requestMatchers("/api/orders/items/*/deliver").hasRole("ADMIN")
+                        .requestMatchers("/api/orders/items/*/accept-return").hasRole("ADMIN")
 
-                        .requestMatchers("/api/orders/**")
-                        .hasRole("CUSTOMER")
+                        // Customer APIs
+                        .requestMatchers("/api/cart/**").hasRole("CUSTOMER")
+                        .requestMatchers("/api/orders/items/*/return").hasRole("CUSTOMER")
+                        .requestMatchers("/api/orders/**").hasRole("CUSTOMER")
 
                         .anyRequest()
                         .authenticated())
