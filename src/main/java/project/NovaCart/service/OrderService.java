@@ -17,6 +17,7 @@ import project.NovaCart.entity.Product;
 import project.NovaCart.entity.SystemUser;
 import project.NovaCart.exception.BadRequestException;
 import project.NovaCart.exception.ResourceNotFoundException;
+import project.NovaCart.exception.UnauthorizedException;
 import project.NovaCart.repository.CartItemRepo;
 import project.NovaCart.repository.OrderItemRepo;
 import project.NovaCart.repository.OrderRepo;
@@ -95,22 +96,19 @@ Long userId = user.getId();
             orderItem.setProduct(product);
             orderItem.setQuantity(cart.getQuantity());
             orderItem.setPrice(product.getPrice());
+            orderItem.setStatus(OrderStatus.PENDING); // Initialize status
 
-            orderItemRepo.save(orderItem);
+            orderItem = orderItemRepo.save(orderItem);
 
             responseItems.add(
-
                     new OrderItemResponse(
-
+                            orderItem.getId(),
                             product.getName(),
-
                             cart.getQuantity(),
-
                             product.getPrice(),
-
-                            product.getPrice().multiply(
-                                    BigDecimal.valueOf(
-                                            cart.getQuantity()))
+                            product.getPrice().multiply(BigDecimal.valueOf(cart.getQuantity())),
+                            orderItem.getStatus(),
+                            product.getId()
                     )
             );
         }
@@ -170,20 +168,15 @@ Long userId = user.getId();
         List<OrderItemResponse> responses =
                 items.stream()
                         .map(item ->
-
                                 new OrderItemResponse(
-
+                                        item.getId(),
                                         item.getProduct().getName(),
-
                                         item.getQuantity(),
-
                                         item.getPrice(),
-
-                                        item.getPrice().multiply(
-                                                BigDecimal.valueOf(
-                                                        item.getQuantity()))
+                                        item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())),
+                                        item.getStatus(),
+                                        item.getProduct().getId()
                                 )
-
                         ).toList();
 
         return new OrderResponse(
@@ -224,21 +217,186 @@ public OrderResponse cancelOrder(Long orderId) {
     List<OrderItem> items =
             orderItemRepo.findByOrderId(orderId);
 
-    // Restore Stock
+    // Restore Stock only for confirmed/shipped/delivered items
     for (OrderItem item : items) {
-
-        Product product = item.getProduct();
-
-        product.setStock(
-                product.getStock() + item.getQuantity());
-
-        productRepo.save(product);
+        if (item.getStatus() == OrderStatus.CONFIRMED || item.getStatus() == OrderStatus.SHIPPED || item.getStatus() == OrderStatus.DELIVERED) {
+            Product product = item.getProduct();
+            product.setStock(product.getStock() + item.getQuantity());
+            productRepo.save(product);
+        }
+        item.setStatus(OrderStatus.CANCELLED);
+        orderItemRepo.save(item);
     }
 
     order.setStatus(OrderStatus.CANCELLED);
-
     orderRepo.save(order);
 
     return mapToOrderResponse(order);
 }
+
+    // ===========================
+    // MULTI-VENDOR/APPROVAL METHODS
+    // ===========================
+
+    public List<OrderItemResponse> getAdminOrderItems() {
+        SystemUser admin = securityService.getCurrentUser();
+        List<OrderItem> items = orderItemRepo.findByProductCreatedById(admin.getId());
+        return items.stream()
+                .map(this::mapToOrderItemResponse)
+                .toList();
+    }
+
+    public OrderItemResponse acceptOrderItem(Long itemId) {
+        OrderItem item = orderItemRepo.findById(itemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order item not found."));
+        
+        SystemUser admin = securityService.getCurrentUser();
+        if (item.getProduct().getCreatedBy() == null || !item.getProduct().getCreatedBy().getId().equals(admin.getId())) {
+            throw new UnauthorizedException("You are not authorized to accept this order item.");
+        }
+
+        if (item.getStatus() != OrderStatus.PENDING) {
+            throw new BadRequestException("Order item is not pending.");
+        }
+
+        Product product = item.getProduct();
+        if (product.getStock() < item.getQuantity()) {
+            throw new BadRequestException("Insufficient stock for product: " + product.getName());
+        }
+
+        // Deduct stock upon acceptance
+        product.setStock(product.getStock() - item.getQuantity());
+        productRepo.save(product);
+
+        item.setStatus(OrderStatus.CONFIRMED);
+        orderItemRepo.save(item);
+
+        updateParentOrderStatus(item.getOrder());
+
+        return mapToOrderItemResponse(item);
+    }
+
+    public OrderItemResponse rejectOrderItem(Long itemId) {
+        OrderItem item = orderItemRepo.findById(itemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order item not found."));
+        
+        SystemUser admin = securityService.getCurrentUser();
+        if (item.getProduct().getCreatedBy() == null || !item.getProduct().getCreatedBy().getId().equals(admin.getId())) {
+            throw new UnauthorizedException("You are not authorized to reject this order item.");
+        }
+
+        // If it was already confirmed, restore stock
+        if (item.getStatus() == OrderStatus.CONFIRMED || item.getStatus() == OrderStatus.SHIPPED || item.getStatus() == OrderStatus.DELIVERED) {
+            Product product = item.getProduct();
+            product.setStock(product.getStock() + item.getQuantity());
+            productRepo.save(product);
+        }
+
+        item.setStatus(OrderStatus.CANCELLED);
+        orderItemRepo.save(item);
+
+        updateParentOrderStatus(item.getOrder());
+
+        return mapToOrderItemResponse(item);
+    }
+
+    public OrderItemResponse deliverOrderItem(Long itemId) {
+        OrderItem item = orderItemRepo.findById(itemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order item not found."));
+        
+        SystemUser admin = securityService.getCurrentUser();
+        if (item.getProduct().getCreatedBy() == null || !item.getProduct().getCreatedBy().getId().equals(admin.getId())) {
+            throw new UnauthorizedException("You are not authorized to deliver this order item.");
+        }
+
+        if (item.getStatus() != OrderStatus.CONFIRMED && item.getStatus() != OrderStatus.SHIPPED) {
+            throw new BadRequestException("Order item must be confirmed or shipped first.");
+        }
+
+        item.setStatus(OrderStatus.DELIVERED);
+        orderItemRepo.save(item);
+
+        updateParentOrderStatus(item.getOrder());
+
+        return mapToOrderItemResponse(item);
+    }
+
+    public OrderItemResponse requestReturn(Long itemId) {
+        OrderItem item = orderItemRepo.findById(itemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order item not found."));
+        
+        SystemUser user = securityService.getCurrentUser();
+        if (!item.getOrder().getUser().getId().equals(user.getId())) {
+            throw new UnauthorizedException("You are not authorized to request return for this item.");
+        }
+
+        if (item.getStatus() != OrderStatus.DELIVERED) {
+            throw new BadRequestException("Only delivered items can be returned.");
+        }
+
+        item.setStatus(OrderStatus.RETURN_REQUESTED);
+        orderItemRepo.save(item);
+
+        updateParentOrderStatus(item.getOrder());
+
+        return mapToOrderItemResponse(item);
+    }
+
+    public OrderItemResponse acceptReturn(Long itemId) {
+        OrderItem item = orderItemRepo.findById(itemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order item not found."));
+        
+        SystemUser admin = securityService.getCurrentUser();
+        if (item.getProduct().getCreatedBy() == null || !item.getProduct().getCreatedBy().getId().equals(admin.getId())) {
+            throw new UnauthorizedException("You are not authorized to accept return for this order item.");
+        }
+
+        if (item.getStatus() != OrderStatus.RETURN_REQUESTED) {
+            throw new BadRequestException("Return is not requested for this item.");
+        }
+
+        // Restore stock
+        Product product = item.getProduct();
+        product.setStock(product.getStock() + item.getQuantity());
+        productRepo.save(product);
+
+        item.setStatus(OrderStatus.RETURNED);
+        orderItemRepo.save(item);
+
+        updateParentOrderStatus(item.getOrder());
+
+        return mapToOrderItemResponse(item);
+    }
+
+    private OrderItemResponse mapToOrderItemResponse(OrderItem item) {
+        return new OrderItemResponse(
+                item.getId(),
+                item.getProduct().getName(),
+                item.getQuantity(),
+                item.getPrice(),
+                item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())),
+                item.getStatus(),
+                item.getProduct().getId()
+        );
+    }
+
+    private void updateParentOrderStatus(Order order) {
+        List<OrderItem> allItems = orderItemRepo.findByOrderId(order.getId());
+        if (allItems.isEmpty()) return;
+
+        boolean hasPending = allItems.stream().anyMatch(i -> i.getStatus() == OrderStatus.PENDING);
+        boolean allCancelledOrReturned = allItems.stream().allMatch(i -> i.getStatus() == OrderStatus.CANCELLED || i.getStatus() == OrderStatus.RETURNED);
+        boolean allDeliveredOrEnded = allItems.stream().allMatch(i -> i.getStatus() == OrderStatus.DELIVERED || i.getStatus() == OrderStatus.CANCELLED || i.getStatus() == OrderStatus.RETURNED);
+
+        if (hasPending) {
+            order.setStatus(OrderStatus.PENDING);
+        } else if (allCancelledOrReturned) {
+            order.setStatus(OrderStatus.CANCELLED);
+        } else if (allDeliveredOrEnded) {
+            order.setStatus(OrderStatus.DELIVERED);
+        } else {
+            order.setStatus(OrderStatus.CONFIRMED);
+        }
+        orderRepo.save(order);
+    }
 }
