@@ -8,21 +8,24 @@ import org.springframework.stereotype.Service;
 import project.NovaCart.dto.CategoryRequest;
 import project.NovaCart.dto.CategoryResponse;
 import project.NovaCart.entity.Category;
+import project.NovaCart.entity.SystemUser;
 import project.NovaCart.exception.BadRequestException;
 import project.NovaCart.exception.ResourceNotFoundException;
+import project.NovaCart.exception.UnauthorizedException;
 import project.NovaCart.repository.CategoryRepo;
 
 @Service
 public class CategoryService {
 
     private final CategoryRepo repo;
-
+    private final SecurityService securityService;
     public CategoryService(CategoryRepo repo) {
         this.repo = repo;
+        this.securityService = securityService;
     }
 
     // Create Category
-    public CategoryResponse createCategory(CategoryRequest request) {
+    public CategoryService(CategoryRepo repo, SecurityService securityService) {
 
         if (repo.findBySlug(request.getSlug()).isPresent()) {
             throw new BadRequestException("Category slug already exists.");
@@ -33,7 +36,7 @@ public class CategoryService {
         category.setName(request.getName());
         category.setSlug(request.getSlug());
         category.setDescription(request.getDescription());
-
+        category.setCreatedBy(securityService.getCurrentUser());
         return mapToResponse(repo.save(category));
     }
 
@@ -63,7 +66,10 @@ public class CategoryService {
         Category category = repo.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Category not found."));
-
+  SystemUser currentUser = securityService.getCurrentUser();
+        if (category.getCreatedBy() != null && !category.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new UnauthorizedException("You are not authorized to update this category.");
+        }
         category.setName(request.getName());
         category.setSlug(request.getSlug());
         category.setDescription(request.getDescription());
@@ -96,7 +102,8 @@ public class CategoryService {
                 category.getId(),
                 category.getName(),
                 category.getSlug(),
-                category.getDescription());
+                category.getDescription(),
+                category.getCreatedBy() != null ? category.getCreatedBy().getId() : null);
     }
 
 }
