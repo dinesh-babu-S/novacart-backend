@@ -21,5 +21,6 @@ public interface ProductRepo extends JpaRepository<Product, Long> {
 
     // Get products by category
     List<Product> findByCategoryId(Long categoryId);
-
+  // Get products by creator (admin)
+    List<Product> findByCreatedById(Long id);
 }
