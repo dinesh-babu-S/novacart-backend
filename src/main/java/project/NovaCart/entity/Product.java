@@ -34,7 +34,9 @@ public class Product {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
-
+     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id")
+    private SystemUser createdBy;
     public Product() {
     }
 
@@ -105,5 +107,11 @@ public class Product {
 
     public void setCategory(Category category) {
         this.category = category;
+    }
+       public SystemUser getCreatedBy() {
+        return createdBy;
+    }
+    public void setCreatedBy(SystemUser createdBy) {
+        this.createdBy = createdBy;
     }
 }
