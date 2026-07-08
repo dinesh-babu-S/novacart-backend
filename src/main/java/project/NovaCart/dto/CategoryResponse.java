@@ -15,12 +15,14 @@ public class CategoryResponse {
 
     public CategoryResponse(Long id, String name,
                             String slug,
-                            String description) {
+                           String description,
+                            Long createdByAdminId) {
 
         this.id = id;
         this.name = name;
         this.slug = slug;
         this.description = description;
+        this.createdByAdminId = createdByAdminId;
     }
 
     public Long getId() {
@@ -53,5 +55,12 @@ public class CategoryResponse {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+    
+    public Long getCreatedByAdminId() {
+        return createdByAdminId;
+    }
+    public void setCreatedByAdminId(Long createdByAdminId) {
+        this.createdByAdminId = createdByAdminId;
     }
 }
