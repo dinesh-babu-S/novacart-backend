@@ -31,7 +31,7 @@ public String generateToken(SystemUser user) {
     Map<String, Object> claims = new HashMap<>();
     claims.put("role", user.getRole().name());
     claims.put("username", user.getUsername());
-
+    claims.put("id", user.getId());
     return Jwts.builder()
             .setClaims(claims)
             .setSubject(user.getEmail())
