@@ -10,6 +10,7 @@ import project.NovaCart.dto.CartResponse;
 import project.NovaCart.entity.CartItem;
 import project.NovaCart.entity.Product;
 import project.NovaCart.entity.SystemUser;
+import project.NovaCart.exception.BadRequestException;
 import project.NovaCart.exception.ResourceNotFoundException;
 import project.NovaCart.repository.CartItemRepo;
 import project.NovaCart.repository.ProductRepo;
@@ -44,10 +45,16 @@ public class CartService {
                 .findByUserIdAndProductId(userId, request.getProductId())
                 .orElse(null);
 
+        int currentQtyInCart = (cartItem != null) ? cartItem.getQuantity() : 0;
+        int requestedTotalQty = currentQtyInCart + request.getQuantity();
+
+        if (product.getStock() < requestedTotalQty) {
+            throw new BadRequestException("Cannot add more items to cart than available in stock (" + product.getStock() + ").");
+        }
+
         if (cartItem != null) {
 
-            cartItem.setQuantity(
-                    cartItem.getQuantity() + request.getQuantity());
+            cartItem.setQuantity(requestedTotalQty);
 
         } else {
 
