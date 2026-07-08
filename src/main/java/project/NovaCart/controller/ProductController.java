@@ -41,7 +41,7 @@ public class ProductController {
         return ResponseEntity.ok(
                 service.getAllProducts());
     }
-
+  
     // Get Product By Id
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(
@@ -79,7 +79,12 @@ public class ProductController {
         return ResponseEntity.ok(
                 service.searchProducts(keyword));
     }
-
+   // Get Logged-in Admin's Products
+    @GetMapping("/mine")
+    public ResponseEntity<List<ProductResponse>> getMyProducts() {
+        return ResponseEntity.ok(
+                service.getMyProducts());
+    }
     // Products By Category
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<ProductResponse>> getProductsByCategory(
