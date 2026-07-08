@@ -13,4 +13,7 @@ public interface OrderItemRepo extends JpaRepository<OrderItem, Long> {
     // Get all items of an order
     List<OrderItem> findByOrderId(Long orderId);
 
+    // Get all order items belonging to products created by a specific admin
+    List<OrderItem> findByProductCreatedById(Long adminId);
+
 }
