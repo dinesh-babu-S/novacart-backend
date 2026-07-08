@@ -64,7 +64,10 @@ public class SecurityConfig {
 
                         // Public static uploaded images
                         .requestMatchers("/uploads/**").permitAll()
-
+                           // Secured Admin Endpoint
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/products/mine")
+                        .hasRole("ADMIN")
                         // Public Product APIs
                         .requestMatchers(HttpMethod.GET,
                                 "/api/products/**")
