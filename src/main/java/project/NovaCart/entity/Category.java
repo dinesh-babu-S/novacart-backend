@@ -20,7 +20,9 @@ public class Category {
     private String slug;
 
     private String description;
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_id")
+    private SystemUser createdBy;
     public Category() {
     }
 
@@ -61,5 +63,12 @@ public class Category {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+    
+    public SystemUser getCreatedBy() {
+        return createdBy;
+    }
+    public void setCreatedBy(SystemUser createdBy) {
+        this.createdBy = createdBy;
     }
 }
