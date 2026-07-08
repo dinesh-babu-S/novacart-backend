@@ -9,7 +9,9 @@ import project.NovaCart.dto.ProductRequest;
 import project.NovaCart.dto.ProductResponse;
 import project.NovaCart.entity.Category;
 import project.NovaCart.entity.Product;
+import project.NovaCart.entity.SystemUser;
 import project.NovaCart.exception.ResourceNotFoundException;
+import project.NovaCart.exception.UnauthorizedException;
 import project.NovaCart.repository.CategoryRepo;
 import project.NovaCart.repository.ProductRepo;
 import org.springframework.data.domain.Page;
@@ -21,12 +23,14 @@ public class ProductService {
 
     private final ProductRepo productRepo;
     private final CategoryRepo categoryRepo;
-
+     private final SecurityService securityService;
     public ProductService(ProductRepo productRepo,
-                          CategoryRepo categoryRepo) {
+                         CategoryRepo categoryRepo,
+                          SecurityService securityService) 
 
         this.productRepo = productRepo;
         this.categoryRepo = categoryRepo;
+         this.securityService = securityService;
     }
 
     // Create Product
@@ -74,6 +78,10 @@ public class ProductService {
         Product product = productRepo.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Product not found."));
+     SystemUser currentUser = securityService.getCurrentUser();
+        if (product.getCreatedBy() != null && !product.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new UnauthorizedException("You are not authorized to update this product.");
+        }
 
         Category category = categoryRepo.findById(request.getCategoryId())
                 .orElseThrow(() ->
@@ -85,7 +93,7 @@ public class ProductService {
         product.setStock(request.getStock());
         product.setImageUrl(request.getImageUrl());
         product.setCategory(category);
-
+        product.setCreatedBy(securityService.getCurrentUser());
         return mapToResponse(productRepo.save(product));
     }
 
@@ -95,7 +103,10 @@ public class ProductService {
         Product product = productRepo.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Product not found."));
-
+      SystemUser currentUser = securityService.getCurrentUser();
+        if (product.getCreatedBy() != null && !product.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new UnauthorizedException("You are not authorized to delete this product.");
+        }
         productRepo.delete(product);
     }
 
@@ -132,6 +143,14 @@ public class ProductService {
     return productRepo.findAll(pageable)
             .map(this::mapToResponse);
 }
+    // Get products created by the current admin user
+    public List<ProductResponse> getMyProducts() {
+        SystemUser currentUser = securityService.getCurrentUser();
+        return productRepo.findByCreatedById(currentUser.getId())
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
 
     // Entity -> DTO
     private ProductResponse mapToResponse(Product product) {
@@ -143,7 +162,9 @@ public class ProductService {
                 product.getPrice(),
                 product.getStock(),
                 product.getImageUrl(),
-                product.getCategory().getName()
+                product.getCategory().getName(),
+                product.getCreatedBy() != null ? product.getCreatedBy().getId() : null,
+                product.getCreatedBy() != null ? product.getCreatedBy().getUsername() : null
         );
     }
 
