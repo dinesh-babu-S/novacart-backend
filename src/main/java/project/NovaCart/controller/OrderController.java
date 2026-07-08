@@ -53,4 +53,44 @@ public class OrderController {
         return ResponseEntity.ok(
                 service.cancelOrder(orderId));
     }
+
+    // ==========================================
+    // MULTI-VENDOR / ORDER ITEM APPROVAL WORKFLOW
+    // ==========================================
+
+    // Fetch incoming order items for logged-in admin
+    @GetMapping("/admin/items")
+    public ResponseEntity<List<project.NovaCart.dto.OrderItemResponse>> getAdminOrderItems() {
+        return ResponseEntity.ok(service.getAdminOrderItems());
+    }
+
+    // Admin accepts order item (deducts stock, sets status to CONFIRMED)
+    @PutMapping("/items/{itemId}/accept")
+    public ResponseEntity<project.NovaCart.dto.OrderItemResponse> acceptOrderItem(@PathVariable Long itemId) {
+        return ResponseEntity.ok(service.acceptOrderItem(itemId));
+    }
+
+    // Admin rejects/cancels order item (sets status to CANCELLED)
+    @PutMapping("/items/{itemId}/reject")
+    public ResponseEntity<project.NovaCart.dto.OrderItemResponse> rejectOrderItem(@PathVariable Long itemId) {
+        return ResponseEntity.ok(service.rejectOrderItem(itemId));
+    }
+
+    // Admin marks order item as delivered (sets status to DELIVERED)
+    @PutMapping("/items/{itemId}/deliver")
+    public ResponseEntity<project.NovaCart.dto.OrderItemResponse> deliverOrderItem(@PathVariable Long itemId) {
+        return ResponseEntity.ok(service.deliverOrderItem(itemId));
+    }
+
+    // Customer requests return (sets status to RETURN_REQUESTED)
+    @PutMapping("/items/{itemId}/return")
+    public ResponseEntity<project.NovaCart.dto.OrderItemResponse> requestReturn(@PathVariable Long itemId) {
+        return ResponseEntity.ok(service.requestReturn(itemId));
+    }
+
+    // Admin accepts return (restores stock, sets status to RETURNED)
+    @PutMapping("/items/{itemId}/accept-return")
+    public ResponseEntity<project.NovaCart.dto.OrderItemResponse> acceptReturn(@PathVariable Long itemId) {
+        return ResponseEntity.ok(service.acceptReturn(itemId));
+    }
 }
