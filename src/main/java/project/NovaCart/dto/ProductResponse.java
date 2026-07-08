@@ -17,6 +17,8 @@ public class ProductResponse {
     private String imageUrl;
 
     private String categoryName;
+    private Long createdByAdminId;
+    private String createdByAdminName;
 
     public ProductResponse() {
     }
@@ -27,7 +29,9 @@ public class ProductResponse {
                            BigDecimal price,
                            Integer stock,
                            String imageUrl,
-                           String categoryName) {
+                           String categoryName,
+                           Long createdByAdminId,
+                           String createdByAdminName) {
 
         this.id = id;
         this.name = name;
@@ -36,6 +40,8 @@ public class ProductResponse {
         this.stock = stock;
         this.imageUrl = imageUrl;
         this.categoryName = categoryName;
+        this.createdByAdminId = createdByAdminId;
+        this.createdByAdminName = createdByAdminName;
     }
 
     public Long getId() {
@@ -92,5 +98,17 @@ public class ProductResponse {
 
     public void setCategoryName(String categoryName) {
         this.categoryName = categoryName;
+    }
+        public Long getCreatedByAdminId() {
+        return createdByAdminId;
+    }
+    public void setCreatedByAdminId(Long createdByAdminId) {
+        this.createdByAdminId = createdByAdminId;
+    }
+    public String getCreatedByAdminName() {
+        return createdByAdminName;
+    }
+    public void setCreatedByAdminName(String createdByAdminName) {
+        this.createdByAdminName = createdByAdminName;
     }
 }
